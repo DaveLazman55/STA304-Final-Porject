@@ -1,0 +1,234 @@
+---
+title: "Analysis of FIFA19 Player Overall Rating and the Relationship with Player Wage"
+author: "Tianyi Jiang"
+date: "2020/12/9"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r, include=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(survey)
+library(table1)
+library(stringr)
+```
+
+```{r, include=FALSE}
+player_data = read_csv('data.csv')
+names(player_data) = str_replace_all(names(player_data), c(" " = "." , "," = "" ))
+newnew = transform(player_data, Wage = as.numeric(Wage))
+```
+
+##Keywords
+
+FIFA 19, Overall Rating, Multiple Linear Regression, Wage, Football, Log Transformation, Residual Plots
+
+
+
+
+
+##Introduction
+
+Statistical analysis is very important in game-developing. Especially games with large data and complicated rating system. In football game FIFA 19, there are more than 10000 real life player information.[1]
+By analyzing the data that determines player overall rating in FIFA 19 and finding possible linear relationship between overall rating and other player data, we get to know how the world's most popular football game rate their players. This will be inspiring to all sports game developers as FIFA is the benchmark of sports game industry. It can even be a reference for football coaches and managers as it has the most comprehensive and detailed data of real life players. Furthermore, the relationship between player overall rating and player wage will be discussed. It is intuitive that players' ability should be the most important factor in determining how much money they make. In this paper I will be discussing to what extend do players' ability affects their wage. Combining the two models we will be able to know what factors are most important for player rating and further affect the income of a player.
+
+Here a multiple linear regression model is fitted for player overall rating to several important possible predictors such as age, international reputation, crossing and stamina. The model will be adjusted to get as accurate representation of how FIFA 19 player ratings are determined as possible.
+Then a simple linear regression model is fitted between player wage and overall rating for players in the top 5 European leagues. Because these are the most representative and competitive leagues in the world.[2] From this model we can see the relationship between player wage and player ability(Under the condition that EA's player rating is very scientific and real life data based), which would be helpful in order to understand the economics behind the biggest sport in the world.[3]
+
+
+
+##Methodology
+
+The chart below is an overall view of the data used in this analysis.[4] There are 18207 players in total in fifa 19 data. The features for some important variables that are going to be used for analyzing is displayed.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+table1(~Overall+Age+Potential+Wage, data = newnew)
+```
+There are many possible predictors, so a multiple linear regression model is chosen for determining what affects overall rating. Because the large number of predictors, some irrelevant ones may be mixed in between and the predictors might be correlated. So a paired scatter plot for several key variables is drown to see if there are linear relationship between overall rating and the predictors as well as if there are correlations among the predictors.
+
+```{r, echo=FALSE}
+pairs(Overall~Age+Potential+ International.Reputation +Weak.Foot+Skill.Moves+Crossing,data = newnew, cex.labels=0.85)
+
+```
+From the paired scatter plot it is clear that player's potential is not a predictor for overall rating because potential is always above or equal to the player's overall rating. It makes sense because if a player is given a rated score then the player's potential ability can not be lower than it. So it is safe to remove potential from possible predictors. For the rest of the predictors, it is hard to tell from the paired scatter plot alone if they have a linear relationship with overall rating due to the huge amount of data. There is also no clear correlation between predictors, so all of the rest will be fit into the model until further analysis.
+
+Age, international reputation, skill moves, crossing, balance and stamina are chosen because these are the qualities that all players need to have no matter what position they play. For example goal keepers and defenders don't necessarily need to have a good finishing because they are not their job is more about defending. Similarly strikers may not need to have good interception because they are more focused on attacking. So statistics that not all players need are not chosen to be predictors.
+
+For the second model of wage and overall rating, only the data from top 5 European leagues are analyzed. Their data will be more representative than some of the less influential leagues. For example in CSL the players are having extremely high wages due to varies reasons but are often being doubted if they are over paid.[5] Because the top 5 European leagues are some of the most successful and professional football leagues in the world, they will be used for the model in order to get a more objective result.
+
+
+##Results
+
+Here I fitted a multiple linear regression model for overall rating to possible predictors. And it summaries as below.
+
+```{r, include=FALSE}
+
+fullmodel2 = lm(Overall~Age+ International.Reputation +Skill.Moves+Crossing+Balance+Stamina,data = newnew)
+summary(fullmodel2)
+
+```
+Based on the multiple regression model we can see that the p-value for all the predictors are less than the 0.05 threshold, indicating that the predictor is significant. The model suggests: Overall_hat = 41.00 + 0.47Age + 5.94International.Reputation + 2.63Skill.Moves + 0.02Crossing + -0.09Balance + 0.08Stamina
+This indicates that as age increase by 1, overall rating tend to increase by 0.47. As international reputation increase by 1, overall rating tend to increase by 5.94. As skill moves increase by 1, overall rating tend to increase by 2.63. And crossing, balance and stamina has relatively small affect on overall rating with it increase by 0.02, -0.09, 0.08 respectively when they increase by 1.
+
+```{r, include=FALSE}
+AIC_model = step(fullmodel2, direction = 'backward')
+```
+A backward AIC selection is used and the results are the same as above.
+
+I then separated the player data from big 5 leagues with the rest data. The overview of new data is as shown below.
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+#Subsetting the players in Italian top league
+player_italian_leag = subset(newnew, Club == 'Juventus' | Club =='Milan'| Club =='Napoli' | Club =='Inter' | Club=='Roma' | Club=='Lazio' | Club=='Atalanta' | Club=='Sassuolo' | Club=='Hellas Verona' | Club=='Fiorentina' | Club=='Parma' | Club=='Bologna'|Club=='Udinese'|Club=='Cagliari'|Club=='Sampdoria'|Club=='Torino'|Club=='Genoa'|Club=='Lecce' |Club=='Brescia'|Club=='SPAL')
+
+
+#Subsetting the players in French top league
+player_french_leag = subset(newnew, Club == 'Paris Saint-Germain' | Club =='Olympique de Marseille'| Club =='Stade Rennais FC' | Club =='LOSC Lille' | Club=='OGC Nice' | Club=='Stade de Reims' | Club=='Olympique Lyonnais' | Club=='Montpellier HSC' | Club=='AS Monaco' | Club=='Angers SCO' | Club=='RC Strasbourg Alsace' | Club=='FC Girondins de Bordeaux'|Club=='FC Nantes'|Club=='Stade Brestois 29'|Club=='FC Metz'|Club=='Dijon FCO'|Club=='AS Saint-Étienne'|Club=='Nîmes Olympique' |Club=='Amiens SC'|Club=='Toulouse Football Club')
+
+
+
+#Subsetting the players in Spanish top league
+player_spanish_leag = subset(newnew, Club == 'FC Barcelona' | Club =='Real Madrid'| Club =='Atlético Madrid' | Club =='Sevilla FC' | Club=='Villarreal CF' | Club=='Real Sociedad' | Club=='Granada CF' | Club=='Getafe CF' | Club=='Valencia CF' | Club=='CA Osasuna' | Club=='Athletic Club de Bilbao' | Club=='Levante UD'|Club=='Real Valladolid CF'|Club=='SD Eibar'|Club=='Real Betis'|Club=='Deportivo Alavés'|Club=='RC Celta'|Club=='CD Leganés' |Club=='RCD Mallorca'|Club=='RCD Espanyol')
+
+
+
+#Subsetting the players in English top league
+player_english_leag = subset(newnew, Club == 'Chelsea' | Club =='Tottenham Hotspur'| Club =='Liverpool' | Club =='Manchester United' | Club=='Manchester City' | Club=='Arsenal' | Club=='Leicester City' | Club=='Wolverhampton Wanderers' | Club=='Sheffield United' | Club=='Burnley' | Club=='Southampton' | Club=='Everton'|Club=='Newcastle United'|Club=='Crystal Palace'|Club=='Brighton & Hove Albion'|Club=='West Ham United'|Club=='Aston Villa'|Club=='Bournemouth' |Club=='Watford'|Club=='Norwich City')
+
+
+
+#Subsetting the players in German top league
+player_german_leag = subset(newnew, Club == 'FC Bayern München' | Club =='Bayer 04 Leverkusen'| Club =='RB Leipzig' | Club =='Borussia Dortmund' | Club=='Borussia Mönchengladbach' | Club=='TSG 1899 Hoffenheim' | Club=='VfL Wolfsburg' | Club=='SC Freiburg' | Club=='Eintracht Frankfurt' | Club=='Hertha BSC' | Club=='1. FC Union Berlin' | Club=='FC Schalke 04'|Club=='1. FSV Mainz 05'|Club=='1. FC Köln'|Club=='FC Augsburg'|Club=='SV Werder Bremen'|Club=='Fortuna Düsseldorf'|Club=='SC Paderborn 07')
+
+
+All_top5leag_player = rbind(player_english_leag, player_french_leag, player_german_leag, player_italian_leag, player_spanish_leag)
+table1(~Overall+Age+International.Reputation+Wage, data = All_top5leag_player)
+```
+
+To get a general view and compare the wage structure for the 5 leagues, 5 histograms of player wage are plotted.
+
+
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(player_english_leag, aes(x=Wage)) + geom_histogram(fill = 'orange')+
+xlab('player wage') +
+  ylab("number of players with the corresponding wage") +
+  ggtitle('Wage Structure for English league players')
+
+ggplot(player_french_leag, aes(x=Wage)) + geom_histogram(fill = 'blue')+
+xlab('player wage') +
+  ylab("number of players with the corresponding wage") +
+  ggtitle('Wage Structure for French league players')
+
+ggplot(player_german_leag, aes(x=Wage)) + geom_histogram(fill = 'red')+
+xlab('player wage') +
+  ylab("number of players with the corresponding wage") +
+  ggtitle('Wage Structure for German league players')
+
+ggplot(player_spanish_leag, aes(x=Wage)) + geom_histogram(fill = 'green')+
+xlab('player wage') +
+  ylab("number of players with the corresponding wage") +
+  ggtitle('Wage Structure for Spanish league players')
+
+ggplot(player_italian_leag, aes(x=Wage)) + geom_histogram(fill = 'black')+
+xlab('player wage') +
+  ylab("number of players with the corresponding wage") +
+  ggtitle('Wage Structure for Italian league players')
+
+```
+
+All five histograms showed similar pattern where the majority of players are getting relatively low salaries and the higher wage the less players having them. English league players seems to be the highest paid on average because it is less right skewed while the highest paid player is in Spanish league.
+
+
+Below is a scatter plot of wage by overall rating. From the plot, wage and overall rating seems to have non-linear relationship. But to prove that, a linear model needs to be fit first.
+
+
+```{r, message=FALSE, echo=FALSE}
+
+ggplot(All_top5leag_player ,aes(x=Overall,y=Wage))+ geom_point()+ xlab("Player Overall Rating")+ ylab("Player Wage")+ ggtitle("Scatterplot of Wage by Overall Rating")
+
+```
+A simple linear regression model is then fitted. The p-value for both intercept and slope variable is less than 0.05 threshold, indicating they are both significant. According to the model, as Overall increase by 1, Wage is estimated to increase by 4.227. The estimated intercept for the regression line is -272.438. However the R-square reported is 0.4764 and the adjusted R-square reported is 0.4762. The four residual plots are plotted.
+
+```{r, include=FALSE}
+wage_model = lm(Wage~Overall, data=All_top5leag_player)
+summary(wage_model)
+
+```
+
+```{r, echo=FALSE}
+
+par(mfrow=c(2,2))
+plot(wage_model)
+
+```
+
+
+After doing a transformation on Wage(explanatory variable), the new scatter plot is plotted and the new model is fitted. 
+
+
+```{r, echo=FALSE}
+ggplot(All_top5leag_player ,aes(x=Overall,y=log(Wage)))+ geom_point()+ xlab("Player Overall Rating")+ ylab("Player Wage")+ ggtitle("Scatterplot of Wage by Overall Rating")
+
+```
+
+```{r, include=FALSE}
+new_wage_model = lm(log(Wage)~Overall, data=All_top5leag_player)
+summary(new_wage_model)
+```
+
+Both p-values are less than 0.05 threshold, so the test is significant. According to the new model, estimated intercept is -8.494 and the estimated slope variable is 0.156. As Overall increases by 1, Wage is estimated to increase by 0.156. The R-square reported is 0.8109 and the adjusted R-square reported is 0.8108. The four residual plots are plotted.
+
+```{r, echo=FALSE}
+par(mfrow=c(2,2))
+plot(new_wage_model)
+
+
+
+```
+
+
+
+##Discussion
+
+For the first multiple linear regression model of fitting Overall with predictors, we can see that according to p-value all predictors are significant. However there are differences in the estimated slope for each predictors. The estimated slope for Age, International.Reputation and Skill.Moves are relatively larger than the estimated slope for other three. With the same amount of change, these 3 will have more influence than the other 3 predictors. And we see that except for Balance, all estimated slope values are positive, indicating they are positively related to Overall. They tend to increase Overall as they increase. The estimated slope for Balance is the only one that has negative value. This means that Balance may not be a quality that players in all position needs. Some players with low Balance may have high Overall instead. 
+
+Since the p-value for all estimated slopes indicates that they are significant, there isn't any predictors that need to be removed simply from the model summary. To further improve the model and see if there are predictors that affect the model and if the model can be better by removing one of the predictors(for example Balance), a backward AIC selection is used. The result is the same as the fitted model because AIC is at the lowest value already and no variable can be removed to generate a lower AIC. So this model will be used as how Overall is determined.
+
+After separating the top 5 league players from the rest, 5 histograms showing frequencies of the wage given in each league is plotted. From the histograms we can see all 5 leagues have right skewed wage structure. This means all leagues have most players getting lower wage and generally the higher wage is the less people are receiving it. The wage structure in English league is generally less right skewed, showing a higher general wage level. Spanish league has the most number of high paid players(wage 300 and above) than all other four leagues. But without the few outliers, the lower end wage structure of Spanish league is more like the rest three leagues and not the English league. The wage structure for the rest three leagues are very similar with only a few high paid players have weekly wage above 100 and majority of players receive weekly wage of less than 100.
+
+After horizontally comparing the 5 leagues' wage structure, the players are now combined and analyzed together. To fit a linear model for Wage and Overall, a scatter plot is drawn first to see if there are linear relationship between the two. Although there seems to be skewness, the scatter plot still indicates that a positive linear relationship may exist between the two as player overall rating increase, player wage increase. So a simple linear model is fitted.
+
+The model has an estimated intercept of -272.438 and estimated slope of 4.227. This indicates a very positive relationship between wage and overall rating. However, it does not mean that when Overall equals 0, Wage will be negative because Overall has a minimum of 47, which will make Wage much closer to being positive when substituted inside. However, the adjusted R-square is only 0.4762, indicating the model is not very optimal. The four residual plots are then drawn. From the residual vs. fitted plot we can see that the residual seems to follow a pattern of increasing as fitted value increase. For normal Q-Q plot, the points deviates from the Q-Q line at the tail, indicating the residual is not normally distributed. The scale-location line is also not straight, meaning non-constant variance. All of the above indicates that the model may not be linear.
+
+A transformation is then introduced to the response variable according to the scatter plot and residual plot patterns: log(Y) is used instead of Y. A new scatter plot is then drawn. We can see the relationship between wage and overall is still positive but the points seem to be forming a more linear relationship. Fitting a new simple linear model after the transformation we get estimated intercept of -8.494 and estimated slope of 0.156. With both p-values less than 0.05, we can now look at the adjusted R-square for the new model. Adjusted R-square is reported to be 0.8109 which is much high than the previous model. This means the new model has a better linear relationship between response and explanatory variables than the previous model. The new four residual plots are drawn to support it. The residual vs. fitted plot points now seems more randomly scattered around the s line which is nearly straight at 0, indicating a linear relationship exists. The Q-Q plot points now fit to the Q-Q line perfectly, indicating the residuals are normally distributed. The scale-location line is more flat than in the previous model, indicating a more constant variance. It is proven that the transformation on Y is needed to construct a linear relationship.
+
+In conclusion, the qualities that affect a player's overall rating the most according to fifa mechanism are age, international reputation and skill move level. The overall rating then have a positive linear relationship with the log of player's weekly wage. This can be a useful reference for analyzing the football player wage market.
+
+
+There are also some weaknesses of the analysis. In the first model, the slope estimate of Balance is negative. Intuitively, the better a player's balance is, the better his overall sporting ability should be. Regardless of what the player's position is. However it is negatively related to overall rating according to the model. There may need to have further analysis on why this happened and the multiple linear regression model may be improved. Fifa's rating scheme may also be flawed. Although it is considered scientific, but the whole second model is based on the assumption that Fifa gives objective overall rating to players. It would be better if a more promsing player ability data is used for analyzing relationship between player's ability with the wage received. Further, a multilevel regression model can be fit in this situation because we have two levels of regression. The overall rating is first estimated by data on player's qualities and wage is then estimated through overall rating. By conducting a multilevel regression the two levels can be combined for analysis.
+
+
+
+
+
+
+
+##Reference
+
+1. Meet the Data Master Behind EA Sports’ Popular FIFA Franchise, https://datamakespossible.westerndigital.com/meet-data-master-ea-sports-fifa/
+
+2.  Qing Yi, Ryan Groom, Chen Dai, Hongyou Liu, Miguel Ángel, Gómez Ruano. Differences in Technical Performance of Players From ‘The Big Five’ European Football Leagues in the UEFA Champions League. https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02738/full
+
+3.Jason Shvili. The Most Popular Sports In The World. https://www.worldatlas.com/articles/what-are-the-most-popular-sports-in-the-world.html
+
+4. Kaggle. FIFA 19 complete player dataset. https://www.kaggle.com/karangadiya/fifa19
+
+5. Li Xiang. CSL becomes world's sixth-highest paid soccer league in terms of average salary. https://news.cgtn.com/news/2019-06-24/CSL-becomes-world-s-sixth-highest-paid-soccer-league-HMW22GC7XG/index.html
+
+6. Data is obtained from open source website Kaggle but is modified in Excel before reading in R. No data value is changed but the structure of data may be changed for operation convenience in R.
+
+
+
+
